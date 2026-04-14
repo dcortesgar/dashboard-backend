@@ -42,7 +42,10 @@ def upload_rci_excel():
     workbook = openpyxl.load_workbook(file, data_only=True)
     sheet = workbook.active
 
-    headers = [cell.value for cell in sheet[1]]
+    HEADER_ROW = 7
+    DATA_START_ROW = 8
+
+    headers = [cell.value for cell in sheet[HEADER_ROW]]
 
     print("HEADERS RAW:", headers)
     print("HEADERS LIMPIOS:")
@@ -50,7 +53,7 @@ def upload_rci_excel():
         print(f"[{normalize_text(h)}]")
 
     if not any(headers):
-        return jsonify({"error": "La primera fila no contiene encabezados válidos."}), 400
+        return jsonify({"error": f"La fila {HEADER_ROW} no contiene encabezados válidos."}), 400
 
     criticidad_header = None
     for h in headers:
@@ -74,7 +77,7 @@ def upload_rci_excel():
     criticidad_media = 0
     criticidad_baja = 0
 
-    for row in sheet.iter_rows(min_row=2, values_only=True):
+    for row in sheet.iter_rows(min_row=DATA_START_ROW, values_only=True):
         if all(value is None for value in row):
             continue
 
@@ -124,4 +127,3 @@ def upload_rci_excel():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
-    
