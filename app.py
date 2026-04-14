@@ -9,24 +9,18 @@ CORS(app)
 def normalize_text(value):
     if value is None:
         return ""
-    return str(value).strip()
+    return str(value).replace("\n", " ").replace("\r", " ").strip()
 
 
 def normalize_key(value):
     return normalize_text(value).lower()
 
 
-def normalize_text(value):
-    if value is None:
-        return ""
-    return str(value).replace("\n", " ").replace("\r", " ").strip().lower()
-
-
 def find_header(headers, expected_name):
-    expected = normalize_text(expected_name)
+    expected = normalize_key(expected_name)
 
     for header in headers:
-        if normalize_text(header) == expected:
+        if normalize_key(header) == expected:
             return str(header)
 
     return None
@@ -51,28 +45,19 @@ def upload_rci_excel():
     headers = [cell.value for cell in sheet[1]]
 
     print("HEADERS RAW:", headers)
-
-print("HEADERS LIMPIOS:")
-
-headers = [cell.value for cell in sheet[1]]
-
-print("HEADERS RAW:", headers)
-print("HEADERS LIMPIOS:")
-for h in headers:
-    print(f"[{str(h)}]")
-
-for h in headers:
-    print(f"[{str(h)}]")
+    print("HEADERS LIMPIOS:")
+    for h in headers:
+        print(f"[{normalize_text(h)}]")
 
     if not any(headers):
         return jsonify({"error": "La primera fila no contiene encabezados válidos."}), 400
 
     criticidad_header = None
+    for h in headers:
+        if "criticidad" in normalize_key(h):
+            criticidad_header = str(h)
+            break
 
-for h in headers:
-    if "criticidad" in str(h).lower():
-        criticidad_header = str(h)
-        break
     codigo_header = find_header(headers, "CÓDIGO INTERFAZ")
     tramo_header = find_header(headers, "Tramo")
     estado_header = find_header(headers, "ESTADO")
@@ -124,7 +109,10 @@ for h in headers:
     total_interfaces = len(rows)
 
     return jsonify({
-        "totalDocuments": total_interfaces,
+        "totalInterfaces": total_interfaces,
+        "criticidadAlta": criticidad_alta,
+        "criticidadMedia": criticidad_media,
+        "criticidadBaja": criticidad_baja,
         "distribution": [
             {"name": "Alta", "value": criticidad_alta},
             {"name": "Media", "value": criticidad_media},
