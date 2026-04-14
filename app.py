@@ -50,6 +50,12 @@ def upload_rci_excel():
 
     headers = [cell.value for cell in sheet[1]]
 
+    print("HEADERS RAW:", headers)
+
+print("HEADERS LIMPIOS:")
+for h in headers:
+    print(f"[{str(h)}]")
+
     if not any(headers):
         return jsonify({"error": "La primera fila no contiene encabezados válidos."}), 400
 
@@ -117,3 +123,4 @@ def upload_rci_excel():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
+    
