@@ -58,6 +58,9 @@ def upload_rci_excel():
             criticidad_header = str(h)
             break
 
+    if criticidad_header is None:
+        return jsonify({"error": "No se encontró la columna 'CRITICIDAD' en el archivo."}), 400
+
     codigo_header = find_header(headers, "CÓDIGO INTERFAZ")
     tramo_header = find_header(headers, "Tramo")
     estado_header = find_header(headers, "ESTADO")
@@ -65,9 +68,6 @@ def upload_rci_excel():
     subsistema_lider_header = find_header(headers, "SUBSISTEMA LIDER")
     sistema2_header = find_header(headers, "SISTEMA 2")
     subsistema_participante_header = find_header(headers, "SUBSISTEMA PARTICIPANTE")
-
-    if criticidad_header is None:
-        return jsonify({"error": "No se encontró la columna 'CRITICIDAD' en el archivo."}), 400
 
     rows = []
     criticidad_alta = 0
