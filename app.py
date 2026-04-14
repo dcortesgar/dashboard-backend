@@ -1,13 +1,31 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import openpyxl
-from collections import Counter
 
 app = Flask(__name__)
 CORS(app)
 
+
+def normalize_text(value):
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def normalize_key(value):
+    return normalize_text(value).lower()
+
+
+def find_header(headers, expected_name):
+    expected_normalized = normalize_key(expected_name)
+    for header in headers:
+        if normalize_key(header) == expected_normalized:
+            return str(header)
+    return None
+
+
 @app.route("/api/documents/upload", methods=["POST"])
-def upload_documents_excel():
+def upload_rci_excel():
     if "file" not in request.files:
         return jsonify({"error": "No se recibió ningún archivo."}), 400
 
@@ -23,7 +41,26 @@ def upload_documents_excel():
     sheet = workbook.active
 
     headers = [cell.value for cell in sheet[1]]
+
+    if not any(headers):
+        return jsonify({"error": "La primera fila no contiene encabezados válidos."}), 400
+
+    criticidad_header = find_header(headers, "CRITICIDAD")
+    codigo_header = find_header(headers, "CÓDIGO INTERFAZ")
+    tramo_header = find_header(headers, "Tramo")
+    estado_header = find_header(headers, "ESTADO")
+    sistema1_header = find_header(headers, "SISTEMA 1")
+    subsistema_lider_header = find_header(headers, "SUBSISTEMA LIDER")
+    sistema2_header = find_header(headers, "SISTEMA 2")
+    subsistema_participante_header = find_header(headers, "SUBSISTEMA PARTICIPANTE")
+
+    if criticidad_header is None:
+        return jsonify({"error": "No se encontró la columna 'CRITICIDAD' en el archivo."}), 400
+
     rows = []
+    criticidad_alta = 0
+    criticidad_media = 0
+    criticidad_baja = 0
 
     for row in sheet.iter_rows(min_row=2, values_only=True):
         if all(value is None for value in row):
@@ -31,27 +68,42 @@ def upload_documents_excel():
 
         row_dict = {}
         for i in range(len(headers)):
-            column_name = headers[i] if headers[i] is not None else f"col_{i}"
-            row_dict[column_name] = row[i]
+            header_name = headers[i] if headers[i] is not None else f"col_{i}"
+            row_dict[str(header_name)] = row[i]
 
-        rows.append(row_dict)
+        criticidad_value = normalize_key(row_dict.get(criticidad_header))
 
-    status_counter = Counter()
+        if criticidad_value == "alta":
+            criticidad_alta += 1
+        elif criticidad_value == "media":
+            criticidad_media += 1
+        elif criticidad_value == "baja":
+            criticidad_baja += 1
 
-    for row in rows:
-        status = row.get("Estatus", "Sin estatus")
-        status_counter[str(status)] += 1
+        simplified_row = {
+            "No.": row_dict.get("No."),
+            "Tramo": row_dict.get(tramo_header) if tramo_header else None,
+            "CÓDIGO INTERFAZ": row_dict.get(codigo_header) if codigo_header else None,
+            "SISTEMA 1": row_dict.get(sistema1_header) if sistema1_header else None,
+            "SUBSISTEMA LIDER": row_dict.get(subsistema_lider_header) if subsistema_lider_header else None,
+            "SISTEMA 2": row_dict.get(sistema2_header) if sistema2_header else None,
+            "SUBSISTEMA PARTICIPANTE": row_dict.get(subsistema_participante_header) if subsistema_participante_header else None,
+            "CRITICIDAD": row_dict.get(criticidad_header),
+            "ESTADO": row_dict.get(estado_header) if estado_header else None,
+        }
 
-    distribution = [
-        {"name": key, "value": value}
-        for key, value in status_counter.items()
-    ]
+        rows.append(simplified_row)
+
+    total_interfaces = len(rows)
 
     return jsonify({
-        "totalDocuments": len(rows),
-        "distribution": distribution,
+        "totalInterfaces": total_interfaces,
+        "criticidadAlta": criticidad_alta,
+        "criticidadMedia": criticidad_media,
+        "criticidadBaja": criticidad_baja,
         "rows": rows
     })
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
